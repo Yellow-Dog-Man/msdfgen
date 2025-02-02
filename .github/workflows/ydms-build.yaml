@@ -1,0 +1,41 @@
+name: "YDMS Build"
+
+on: [push]
+
+jobs:
+  build-linux:
+    strategy:
+      matrix:
+        osver: [ubuntu-latest, ubuntu-24.04-arm]
+
+    runs-on: ${{ matrix.osver }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set dist name
+        run: |
+          if ${{ matrix.osver == 'ubuntu-24.04-arm' }}; then
+            echo "distname=msdfgen-linux-arm" >> "$GITHUB_ENV"
+          else
+            echo "distname=msdfgen-linux" >> "$GITHUB_ENV"
+          fi
+      - name: Install dependencies
+        run: |
+          sudo apt-get install libfreetype-dev
+      - name: Create build dirs
+        run: |
+          mkdir build
+          cd build
+          echo "builddir=$(pwd)" >> "$GITHUB_ENV"
+      - name: Build msdfgen Linux
+        working-directory: ${{ env.builddir }}
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=Release -DMSDFGEN_BUILD_STANDALONE=OFF -DMSDFGEN_BUILD_SHARED_LIBRARY=ON ..
+          make -j4
+          tree ..
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.distname }}
+          path: ${{ env.builddir }}/**/*.so
